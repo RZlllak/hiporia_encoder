@@ -94,7 +94,7 @@ def add_subtitles(
             "-map", "0",
             "-map", "1",
             "-c:s", "srt",
-            "-metadata:s:s:0", "language=per[Persian]"
+            "-metadata:s:s:0"
         ]
 
     if remove_sub:
@@ -103,7 +103,7 @@ def add_subtitles(
     if output_encode is not None:
         cmd += [
             "-c:v", f"lib{output_encode}",
-            "-tune", "ssim",
+            "-tune", "animation",
             "-crf", str(crf),
             "-c:a", "aac",
             "-b:a", "80k"
