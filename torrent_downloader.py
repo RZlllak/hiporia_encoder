@@ -3,7 +3,6 @@ import zipfile
 import time
 import datetime
 import shutil
-import libtorrent as lt
 from tqdm.notebook import tqdm
 import os
 
