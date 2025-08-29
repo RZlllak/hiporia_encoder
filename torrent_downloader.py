@@ -85,7 +85,7 @@ def add_subtitles(input_video, subtitle_file, encode_type='hard',
       cmd = [
           "ffmpeg",
           "-i", input_video,
-          "-vf", f"\"subtitles={subtitle_file},ass=main.ass\""
+          "-vf", f"\"ass={subtitle_file},ass=main.ass\""
       ]
     else:
       vmap = "-0:v" if remove_sub else "0"
