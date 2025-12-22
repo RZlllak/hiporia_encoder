@@ -105,7 +105,7 @@ def add_subtitles(input_video, subtitle_file, encode_type='hard',
     else:
       cmd += ["-map","0"]      
     if output_encode is not None:
-      cmd +=["-c:v",f"lib{output_encode}", "-tune", "animation" , "-level" , "4.1" , "-color_primaries" , "bt709" , "-color_trc bt709" , "-colorspace" , "bt709" , "-crf", str(crf), "-c:a", "aac", "-b:a", "128k"]
+      cmd +=["-c:v",f"lib{output_encode}", "-tune animation", "-level 4.1", "-profile high" , "-color_primaries" , "bt709" , "-color_trc bt709" , "-colorspace" , "bt709" , "-crf", str(crf), "-c:a", "aac", "-b:a", "128k"]
     if size_string is not None:
       cmd += ["-s", size_string]
     shell_cmd = ' '.join(cmd)
