@@ -5,49 +5,90 @@ import datetime
 import shutil
 from tqdm.notebook import tqdm
 import os
+import wget
 
 def download_torrent(torrent_link, save_path):
     os.makedirs(save_path, exist_ok=True)
 
-    # اگر لینک فایل تورنته، دانلود کن و تبدیل به مسیر فایل کن
+    # اگر لینک torrent file باشه، دانلودش کن
     if torrent_link.endswith('.torrent'):
-        if os.path.exists('torrent.torrent'):
-            os.remove('torrent.torrent')
-        wget.download(torrent_link, 'torrent.torrent')
-        torrent_input = 'torrent.torrent'
+        torrent_file = os.path.join(save_path, "temp.torrent")
+        if os.path.exists(torrent_file):
+            os.remove(torrent_file)
+        wget.download(torrent_link, torrent_file)
+        torrent_input = torrent_file
     else:
-        torrent_input = torrent_link  # اگر magnet باشه
+        torrent_input = torrent_link  # magnet
 
     print(torrent_input)
-
     print(datetime.datetime.now())
     print('Starting Torrent Download...')
 
-    # اجرای aria2c با subprocess
-    out_dir = save_path
+    log_file = os.path.join(save_path, "aria2.log")
+
     command = [
         "aria2c",
-        torrent_input,
-        "--dir", out_dir,
-        "--console-log-level=warn",
-        "--summary-interval=0",
-        "--seed-time=0",  # بعد از دانلود، سیدنکنه
+
+        # ================= CONCURRENCY (CRITICAL) =================
+        "-x16",                 # connections per server
+        "-s4",                  # LOW split = faster torrents
+        "-k4M",                 # request bigger pieces
+        "--min-split-size=4M",
+
+        # ================= DISK IO OPTIMIZATION =================
+        "--file-allocation=trunc",
+        "--enable-mmap=true",
+        "--disk-cache=256M",
+        "--stream-piece-selector=inorder",
+
+        # ================= TORRENT OPTIMIZATION =================
+        "--bt-max-peers=0",
+        "--bt-request-peer-speed-limit=50M",
+        "--bt-prioritize-piece=head,tail",
+        "--bt-save-metadata=true",
+        "--bt-load-saved-metadata=true",
+
+        # ================= NETWORK =================
+        "--enable-dht=true",
+        "--enable-peer-exchange=true",
+        "--bt-enable-lpd=true",
+
+        # ================= FILE SAFETY =================
+        "--auto-file-renaming=false",
+        "--allow-overwrite=false",
+
+        # ================= TRACKERS =================
+        "--bt-tracker=https://tracker.openbittorrent.com:443/announce",
+        "--bt-tracker=https://tracker.opentrackr.org:443/announce",
+        "--bt-tracker=https://tracker.leechers-paradise.org:6969/announce",
+
+        # ================= NO SEED =================
+        "--seed-time=0",
         "--bt-seed-unverified=false",
-        "--max-connection-per-server=10",
-        "--split=10",
-        "--min-split-size=1M"
+
+        # ================= PROGRESS =================
+        "--summary-interval=1",
+        "--console-log-level=notice",
+        "--human-readable=true",
+        f"--log={log_file}",
+
+        # ================= OUTPUT =================
+        "--dir", save_path,
+
+        torrent_input
     ]
 
-    # اجرای دستور و گرفتن پیشرفت تقریبی
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
+    )
 
     pbar = tqdm(total=100)
-    while True:
-        line = process.stdout.readline()
-        if not line:
-            break
-        if '[#' in line and '%' in line:
-            # مثلا: [#6a3c0f 17MiB/500MiB(3%) CN:10 DL:1.2MiB ETA:6m34s]
+    for line in process.stdout:
+        if '(' in line and '%' in line:
             try:
                 percent = line.split('%')[0].split('(')[-1]
                 pbar.n = int(float(percent))
@@ -63,16 +104,24 @@ def download_torrent(torrent_link, save_path):
 
     print("Download complete.")
 
-    # یافتن فایل دانلود شده (اولین فایل بزرگ در پوشه)
-    downloaded_files = [f for f in os.listdir(save_path) if os.path.isfile(os.path.join(save_path, f))]
+    # پیدا کردن بزرگ‌ترین فایل دانلودشده
+    downloaded_files = [
+        f for f in os.listdir(save_path)
+        if os.path.isfile(os.path.join(save_path, f))
+    ]
+
     if not downloaded_files:
         print("No files found.")
         return None
 
-    downloaded_files.sort(key=lambda f: os.path.getsize(os.path.join(save_path, f)), reverse=True)
-    output_file = downloaded_files[0]
+    downloaded_files.sort(
+        key=lambda f: os.path.getsize(os.path.join(save_path, f)),
+        reverse=True
+    )
 
+    output_file = downloaded_files[0]
     return os.path.join(save_path, output_file)
+
 
 
 def add_subtitles(input_video, subtitle_file, encode_type='hard',
