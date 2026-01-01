@@ -205,7 +205,16 @@ def download_torrent_libtorrent(torrent_link, save_path):
 
     # ================= DOWNLOAD LOOP =================
     total_size = handle.status().total_wanted
-    pbar = tqdm(total=total_size, unit='B', unit_scale=True, ncols=100)
+    pbar = tqdm(
+    total=total_size,
+    unit='B',
+    unit_scale=True,
+    ncols=140,              # عرض بیشتر
+    dynamic_ncols=False,    # جلوگیری از auto-shrink
+    ascii=False,
+    desc="Downloading"
+)
+
     last_done = 0
 
     while not handle.status().is_seeding:
@@ -215,10 +224,12 @@ def download_torrent_libtorrent(torrent_link, save_path):
         pbar.update(done - last_done)
         last_done = done
 
-        pbar.set_postfix({
-            "DL": f"{s.download_rate / 1024 / 1024:.2f} MB/s",
-            "Peers": s.num_peers
-        })
+        pbar.set_postfix_str(
+    f"DL: {s.download_rate/1024/1024:6.2f} MB/s | "
+    f"Peers: {s.num_peers:3d} | "
+    f"Seeds: {s.num_seeds:3d}"
+)
+
 
         time.sleep(1)
 
