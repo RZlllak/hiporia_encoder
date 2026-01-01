@@ -1,4 +1,5 @@
 import subprocess
+import libtorrent as lt
 import zipfile
 import time
 import datetime
@@ -7,7 +8,7 @@ from tqdm.notebook import tqdm
 import os
 import wget
 
-def download_torrent(torrent_link, save_path):
+def download_torrent_aria2(torrent_link, save_path):
     os.makedirs(save_path, exist_ok=True)
 
     # اگر لینک torrent file باشه، دانلودش کن
@@ -122,6 +123,127 @@ def download_torrent(torrent_link, save_path):
     output_file = downloaded_files[0]
     return os.path.join(save_path, output_file)
 
+def download_torrent_libtorrent(torrent_link, save_path):
+    
+    os.makedirs(save_path, exist_ok=True)
+
+    # اگر لینک torrent file باشه
+    if torrent_link.endswith('.torrent'):
+        torrent_file = os.path.join(save_path, "temp.torrent")
+        if os.path.exists(torrent_file):
+            os.remove(torrent_file)
+        wget.download(torrent_link, torrent_file)
+        torrent_input = torrent_file
+        is_magnet = False
+    else:
+        torrent_input = torrent_link
+        is_magnet = True
+
+    print(torrent_input)
+    print(datetime.datetime.now())
+    print("Starting Torrent Download (libtorrent)...")
+
+    # ================= SESSION SETUP =================
+    ses = lt.session()
+    ses.listen_on(6881, 6891)
+
+    settings = {
+        'download_rate_limit': 0,
+        'upload_rate_limit': 0,
+
+        'connections_limit': 500,
+        'active_downloads': 10,
+        'active_seeds': 10,
+        'active_limit': 100,
+
+        'request_timeout': 10,
+        'peer_timeout': 10,
+        'inactivity_timeout': 30,
+
+        'enable_dht': True,
+        'enable_lsd': True,
+        'enable_upnp': True,
+        'enable_natpmp': True,
+
+        'cache_size': 32 * 1024 * 1024,  # 32MB
+        'disk_io_write_mode': 1,          # write-through
+        'strict_end_game_mode': False,
+        'seed_time_limit': 0,
+    }
+
+    ses.apply_settings(settings)
+
+    # ================= ADD TORRENT =================
+    params = {
+        'save_path': save_path,
+        'storage_mode': lt.storage_mode_t.storage_mode_sparse,
+    }
+
+    if is_magnet:
+        params['url'] = torrent_input
+    else:
+        params['ti'] = lt.torrent_info(torrent_input)
+
+    handle = ses.add_torrent(params)
+
+    # ================= WAIT FOR METADATA =================
+    if is_magnet:
+        print("⏳ Waiting for metadata...")
+        while not handle.has_metadata():
+            time.sleep(1)
+        print("✅ Metadata received")
+
+    # ================= FILE PRIORITY =================
+    ti = handle.get_torrent_info()
+    files = ti.files()
+
+    sizes = [(i, files.file_size(i)) for i in range(ti.num_files())]
+    sizes.sort(key=lambda x: x[1], reverse=True)
+
+    for idx, size in sizes:
+        handle.file_priority(idx, 7 if size > 0 else 1)
+
+    # ================= DOWNLOAD LOOP =================
+    total_size = handle.status().total_wanted
+    pbar = tqdm(total=total_size, unit='B', unit_scale=True, ncols=100)
+    last_done = 0
+
+    while not handle.status().is_seeding:
+        s = handle.status()
+
+        done = s.total_wanted_done
+        pbar.update(done - last_done)
+        last_done = done
+
+        pbar.set_postfix({
+            "DL": f"{s.download_rate / 1024 / 1024:.2f} MB/s",
+            "Peers": s.num_peers
+        })
+
+        time.sleep(1)
+
+    pbar.n = pbar.total
+    pbar.close()
+
+    print("Download complete.")
+
+    # ================= FIND LARGEST FILE =================
+    downloaded_files = [
+        f for f in os.listdir(save_path)
+        if os.path.isfile(os.path.join(save_path, f))
+    ]
+
+    if not downloaded_files:
+        print("No files found.")
+        return None
+
+    downloaded_files.sort(
+        key=lambda f: os.path.getsize(os.path.join(save_path, f)),
+        reverse=True
+    )
+
+    output_file = downloaded_files[0]
+    return os.path.join(save_path, output_file)
 
 
 def add_subtitles(input_video, subtitle_file, encode_type='hard',
