@@ -203,40 +203,44 @@ def download_torrent_libtorrent(torrent_link, save_path):
     for idx, size in sizes:
         handle.file_priority(idx, 7 if size > 0 else 1)
 
-    # ================= DOWNLOAD LOOP =================
-    total_size = handle.status().total_wanted
-    pbar = tqdm(
-    total=total_size,
-    unit='B',
-    unit_scale=True,
-    ncols=140,              # عرض بیشتر
-    dynamic_ncols=False,    # جلوگیری از auto-shrink
-    ascii=False,
-    desc="Downloading"
-)
-
-    last_done = 0
+    # ================= DOWNLOAD LOOP =================#
+    pbar = tqdm(total=100)
 
     while not handle.status().is_seeding:
-        s = handle.status()
+        try:
+            s = handle.status()
 
-        done = s.total_wanted_done
-        pbar.update(done - last_done)
-        last_done = done
+            if s.total_wanted > 0:
+                percent = (s.total_wanted_done / s.total_wanted) * 100
+            else:
+                percent = 0
 
-        pbar.set_postfix_str(
-    f"DL: {s.download_rate/1024/1024:6.2f} MB/s | "
-    f"Peers: {s.num_peers:3d} | "
-    f"Seeds: {s.num_seeds:3d}"
-)
+            # شبیه‌سازی خروجی aria2
+            line = (
+                f"[#libtorrent "
+                f"{s.total_wanted_done/1024/1024:.0f}MiB/"
+                f"{s.total_wanted/1024/1024:.0f}MiB"
+                f"({percent:.0f}%) "
+                f"CN:{s.num_peers} "
+                f"DL:{s.download_rate/1024/1024:.2f}MiB "
+                f"ETA:{int((s.total_wanted - s.total_wanted_done) / (s.download_rate + 1))}s]"
+            )
 
+            # === همون منطق aria2 ===
+            if '(' in line and '%' in line:
+                percent = line.split('%')[0].split('(')[-1]
+                pbar.n = int(float(percent))
+                pbar.set_postfix_str(line.strip())
+                pbar.refresh()
 
-        time.sleep(1)
+            time.sleep(1)
 
-    pbar.n = pbar.total
+        except:
+            pass
+
+    pbar.n = 100
+    pbar.refresh()
     pbar.close()
-
-    print("Download complete.")
 
     # ================= FIND LARGEST FILE =================
     downloaded_files = [
