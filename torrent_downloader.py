@@ -7,6 +7,7 @@ import shutil
 from tqdm.notebook import tqdm
 import os
 import wget
+import json
 
 def download_torrent_aria2(torrent_link, save_path):
     os.makedirs(save_path, exist_ok=True)
@@ -259,9 +260,6 @@ def download_torrent_libtorrent(torrent_link, save_path):
 
     output_file = downloaded_files[0]
     return os.path.join(save_path, output_file)
-
-import subprocess
-import json
 
 def encode_intro(
     main_video_path,
