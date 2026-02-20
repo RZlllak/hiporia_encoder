@@ -260,42 +260,168 @@ def download_torrent_libtorrent(torrent_link, save_path):
     output_file = downloaded_files[0]
     return os.path.join(save_path, output_file)
 
+import subprocess
+import json
 
-def add_subtitles(input_video, subtitle_file, encode_type='hard',
-      output_encode='x264',crf=25,size_string=None,remove_sub=False):
-    # Check if hard sub is requested
-    sub_type = "-vf" if encode_type=='hard' else "-scodec"
-    # Command to add subtitles using ffmpeg
-    if encode_type=='hard':
-      subtitle_file = subtitle_file.replace('\"','')
-      cmd = [
-          "ffmpeg",
-          "-i", input_video,
-          "-vf", f"\"ass={subtitle_file},ass=main.ass\""
-      ]
+def encode_intro(
+    main_video_path,
+    resolution,
+    crf=23,
+    preset="medium"
+):
+    """
+    Encode intro video to match main video FPS.
+
+    Parameters:
+        main_video_path (str): Path to main episode video (for FPS detection)
+        resolution (str): Target resolution (e.g. "1920x1080")
+        crf (int): Quality factor
+        preset (str): x264 preset
+
+    Output:
+        /content/temp_files/intro.mkv
+    """
+
+    intro_input = "/content/intro/intro.mp4"
+    intro_output = "/content/temp_files/intro.mkv"
+
+    # گرفتن FPS از ویدیوی اصلی
+    probe_cmd = [
+        "ffprobe",
+        "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=r_frame_rate",
+        "-of", "json",
+        main_video_path
+    ]
+
+    probe_result = subprocess.run(
+        probe_cmd,
+        capture_output=True,
+        text=True
+    )
+
+    video_info = json.loads(probe_result.stdout)
+    stream = video_info["streams"][0]
+
+    fps_fraction = stream["r_frame_rate"]
+    num, denom = map(int, fps_fraction.split("/"))
+    target_fps = num / denom
+
+    # ساخت دستور انکود intro
+    cmd = [
+        "ffmpeg",
+        "-i", intro_input,
+        "-vf", f"fps={target_fps},scale={resolution}",
+        "-c:v", "libx264",
+        "-preset", preset,
+        "-tune", "animation",
+        "-profile:v", "high",
+        "-level", "4.1",
+        "-color_primaries", "bt709",
+        "-color_trc", "bt709",
+        "-colorspace", "bt709",
+        "-crf", str(crf),
+        "-c:a", "aac",
+        "-b:a", "128k",
+        intro_output
+    ]
+
+    return " ".join(cmd)
+
+def add_subtitles(
+    input_video,
+    episode_subtitle,
+    output_video,
+    crf=23,
+    resolution=None,
+    remove_original_subs=True,
+    channel_subtitle="main.ass"
+):
+    """
+    Hardcode two ASS subtitles into video using libx264.
+    
+    Parameters:
+        input_video (str): Path to input video
+        episode_subtitle (str): Episode-specific .ass file
+        output_video (str): Path to final encoded output
+        crf (int): Quality factor (lower = better quality)
+        resolution (str): Optional resolution like "1920x1080"
+        remove_original_subs (bool): Remove existing subtitle streams
+        channel_subtitle (str): Channel tag subtitle (default: main.ass)
+    """
+
+    # ساخت فیلتر هاردساب با دو فایل ASS
+    subtitle_filter = f"ass={episode_subtitle},ass={channel_subtitle}"
+
+    cmd = [
+        "ffmpeg",
+        "-i", input_video,
+        "-vf", subtitle_filter,
+    ]
+
+    # Stream mapping
+    if remove_original_subs:
+        cmd += ["-map", "0:v", "-map", "0:a"]
     else:
-      vmap = "-0:v" if remove_sub else "0"
-      amap = "-0:a" if remove_sub else "0"
-      cmd = [
-          "ffmpeg",
-          "-i", input_video,  # Input video file
-          "-i", subtitle_file,  # Subtitle file
-          "-map","1",
-          "-c:s","srt",
-          "-metadata:s:s:1","language=per[Persian]",
-          "-vf", '"ass=main.ass"'
-      ]
-      
-    if remove_sub:
-      cmd += ["-map", "0:v", "-map", "0:a"]
-    else:
-      cmd += ["-map","0"]      
-    if output_encode is not None:
-      cmd +=["-c:v",f"lib{output_encode}", "-tune animation", "-level 4.1", "-color_primaries" , "bt709" , "-color_trc bt709" , "-colorspace" , "bt709" , "-crf", str(crf), "-c:a", "aac", "-b:a", "128k"]
-    if size_string is not None:
-      cmd += ["-s", size_string]
-    shell_cmd = ' '.join(cmd)
-    return shell_cmd
+        cmd += ["-map", "0"]
+
+    # Video encoding (libx264 ثابت)
+    cmd += [
+        "-c:v", "libx264",
+        "-preset", "medium",
+        "-tune", "animation",
+        "-profile:v", "high",
+        "-level", "4.1",
+        "-color_primaries", "bt709",
+        "-color_trc", "bt709",
+        "-colorspace", "bt709",
+        "-crf", str(crf),
+    ]
+
+    # Audio encoding
+    cmd += [
+        "-c:a", "aac",
+        "-b:a", "128k"
+    ]
+
+    # Optional resolution
+    if resolution:
+        cmd += ["-s", resolution]
+
+    cmd.append(output_video)
+
+    return " ".join(cmd)
+
+def concat_videos(intro_path, episode_path, output_path):
+    """
+    Concatenate two videos using ffmpeg without re-encoding (-c copy).
+
+    Parameters:
+        intro_path (str): Path to encoded intro video
+        episode_path (str): Path to encoded episode video
+        output_path (str): Path to final output video
+    """
+
+    # فایل لیست برای concat
+    list_file = "/content/temp_files/list.txt"
+    os.makedirs(os.path.dirname(list_file), exist_ok=True)
+
+    with open(list_file, "w") as f:
+        f.write(f"file '{intro_path}'\n")
+        f.write(f"file '{episode_path}'\n")
+
+    # دستور concat
+    cmd = [
+        "ffmpeg",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", list_file,
+        "-c", "copy",
+        output_path
+    ]
+
+    subprocess.run(cmd, shell=True)
 
 def get_mkv_files(root_dir):
    mkv_files = []
