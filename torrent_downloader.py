@@ -379,7 +379,7 @@ def add_subtitles(
 
     cmd.append(output_video)
 
-    return cmd
+    return " ".join(cmd)
 
 def concat_videos(intro_path, episode_path, output_path):
     """
@@ -409,7 +409,7 @@ def concat_videos(intro_path, episode_path, output_path):
         output_path
     ]
 
-    return cmd
+    return " ".join(cmd)
 
 def get_mkv_files(root_dir):
    mkv_files = []
