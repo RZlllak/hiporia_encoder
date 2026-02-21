@@ -310,7 +310,7 @@ def encode_intro(
         "-colorspace", "bt709",
         "-crf", "23",
         "-c:a", "aac",
-        "-b:a", "128k"
+        "-b:a", "128k",
         intro_output
     ]
 
