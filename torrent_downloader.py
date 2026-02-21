@@ -261,29 +261,20 @@ def download_torrent_libtorrent(torrent_link, save_path):
     output_file = downloaded_files[0]
     return os.path.join(save_path, output_file)
 
+import subprocess
+import json
+
 def encode_intro(
     main_video_path,
     resolution,
     crf=23,
     preset="medium"
 ):
-    """
-    Encode intro video to match main video FPS.
-
-    Parameters:
-        main_video_path (str): Path to main episode video (for FPS detection)
-        resolution (str): Target resolution (e.g. "1920x1080")
-        crf (int): Quality factor
-        preset (str): x264 preset
-
-    Output:
-        /content/temp_files/intro.mkv
-    """
 
     intro_input = "/content/intro/intro.mp4"
     intro_output = "/content/temp_files/intro.mkv"
 
-    # گرفتن FPS از ویدیوی اصلی
+    # گرفتن FPS
     probe_cmd = [
         "ffprobe",
         "-v", "error",
@@ -300,17 +291,16 @@ def encode_intro(
     )
 
     video_info = json.loads(probe_result.stdout)
-    stream = video_info["streams"][0]
+    fps_fraction = video_info["streams"][0]["r_frame_rate"]
 
-    fps_fraction = stream["r_frame_rate"]
-    num, denom = map(int, fps_fraction.split("/"))
-    target_fps = num / denom
+    # استفاده مستقیم از کسر به جای عدد اعشاری
+    target_fps = fps_fraction   # مثلا 24000/1001
 
-    # ساخت دستور انکود intro
     cmd = [
         "ffmpeg",
+        "-y",
         "-i", intro_input,
-        "-vf", f"fps={target_fps},scale={resolution}",
+        "-vf", f"fps={target_fps}" + (f",scale={resolution}" if resolution else ""),
         "-c:v", "libx264",
         "-preset", preset,
         "-tune", "animation",
