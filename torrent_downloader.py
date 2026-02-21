@@ -268,7 +268,7 @@ def encode_intro(
     preset="medium"
 ):
 
-    intro_input = "/content/intro/intro.mp4"
+    intro_input = "/content/torrent_downloader/intro/Intro.mp4"
     intro_output = "/content/temp_files/intro.mkv"
 
     os.makedirs(os.path.dirname(intro_output), exist_ok=True)
@@ -310,12 +310,11 @@ def encode_intro(
         "-color_trc", "bt709",
         "-colorspace", "bt709",
         "-crf", str(crf),
-        "-c:a", "aac",
-        "-b:a", "128k",
         intro_output
     ]
 
     return " ".join(cmd)
+
 
 def add_subtitles(
     input_video,
