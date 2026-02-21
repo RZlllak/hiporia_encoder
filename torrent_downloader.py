@@ -309,6 +309,8 @@ def encode_intro(
         "-color_primaries", "bt709",
         "-color_trc", "bt709",
         "-colorspace", "bt709",
+        "-c:a", "aac",
+        "-b:a", "128k"
         "-crf", str(crf),
         intro_output
     ]
@@ -407,9 +409,7 @@ def concat_videos(intro_path, episode_path, output_path):
         output_path
     ]
 
-    result = subprocess.run(cmd, text=True, capture_output=True)
-    print(result.stderr)
-    result.check_returncode()
+    return cmd
 
 def get_mkv_files(root_dir):
    mkv_files = []
