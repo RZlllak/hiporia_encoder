@@ -261,9 +261,6 @@ def download_torrent_libtorrent(torrent_link, save_path):
     output_file = downloaded_files[0]
     return os.path.join(save_path, output_file)
 
-import subprocess
-import json
-
 def encode_intro(
     main_video_path,
     resolution,
@@ -274,7 +271,9 @@ def encode_intro(
     intro_input = "/content/intro/intro.mp4"
     intro_output = "/content/temp_files/intro.mkv"
 
-    # گرفتن FPS
+    os.makedirs(os.path.dirname(intro_output), exist_ok=True)
+
+    # گرفتن FPS از ویدیوی اصلی
     probe_cmd = [
         "ffprobe",
         "-v", "error",
@@ -293,14 +292,15 @@ def encode_intro(
     video_info = json.loads(probe_result.stdout)
     fps_fraction = video_info["streams"][0]["r_frame_rate"]
 
-    # استفاده مستقیم از کسر به جای عدد اعشاری
-    target_fps = fps_fraction   # مثلا 24000/1001
+    # تبدیل کسر به عدد اعشاری و گرد کردن تا 3 رقم
+    num, den = map(int, fps_fraction.split("/"))
+    fps = round(num / den, 3)
 
     cmd = [
         "ffmpeg",
         "-y",
         "-i", intro_input,
-        "-vf", f"fps={target_fps}" + (f",scale={resolution}" if resolution else ""),
+        "-vf", f"fps={fps},scale={resolution}",
         "-c:v", "libx264",
         "-preset", preset,
         "-tune", "animation",
