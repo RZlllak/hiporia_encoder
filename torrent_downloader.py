@@ -378,7 +378,7 @@ def add_subtitles(
 
     cmd.append(output_video)
 
-    return " ".join(cmd)
+    return cmd
 
 def concat_videos(intro_path, episode_path, output_path):
     """
