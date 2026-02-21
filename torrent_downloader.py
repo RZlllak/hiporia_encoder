@@ -310,9 +310,9 @@ def encode_intro(
         "-colorspace", "bt709",
         "-crf", "23",
         "-c:a", "aac",
-        "-b:a", "128k",
+        "-b:a", "128k"
         intro_output
-    ]
+        ]
 
     return " ".join(cmd)
 
@@ -343,7 +343,7 @@ def add_subtitles(
 
     cmd = [
         "ffmpeg",
-        "-i", f"{input_video}",
+        "-i", f'"{input_video}"',
         "-vf", subtitle_filter,
     ]
 
@@ -376,7 +376,7 @@ def add_subtitles(
     if resolution:
         cmd += ["-s", resolution]
 
-    cmd.append(output_video)
+    cmd.append(f'"{output_video}"')
 
     return " ".join(cmd)
 
@@ -405,7 +405,7 @@ def concat_videos(intro_path, episode_path, output_path):
         "-safe", "0",
         "-i", list_file,
         "-c", "copy",
-        output_path
+        f'"{output_path}"'
     ]
 
     return " ".join(cmd)
