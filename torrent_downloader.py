@@ -264,7 +264,6 @@ def download_torrent_libtorrent(torrent_link, save_path):
 def encode_intro(
     main_video_path,
     resolution,
-    crf=23,
     preset="medium"
 ):
 
@@ -311,7 +310,7 @@ def encode_intro(
         "-colorspace", "bt709",
         "-c:a", "aac",
         "-b:a", "128k"
-        "-crf", str(crf),
+        "-crf", "23",
         intro_output
     ]
 
@@ -344,7 +343,7 @@ def add_subtitles(
 
     cmd = [
         "ffmpeg",
-        "-i", input_video,
+        "-i", f"{input_video}",
         "-vf", subtitle_filter,
     ]
 
@@ -379,7 +378,7 @@ def add_subtitles(
 
     cmd.append(output_video)
 
-    return " ".join(cmd)
+    return cmd
 
 def concat_videos(intro_path, episode_path, output_path):
     """
@@ -409,7 +408,7 @@ def concat_videos(intro_path, episode_path, output_path):
         output_path
     ]
 
-    return " ".join(cmd)
+    return cmd
 
 def get_mkv_files(root_dir):
    mkv_files = []
