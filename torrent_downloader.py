@@ -315,7 +315,6 @@ def encode_intro(
 
     return " ".join(cmd)
 
-
 def add_subtitles(
     input_video,
     episode_subtitle,
@@ -408,7 +407,9 @@ def concat_videos(intro_path, episode_path, output_path):
         output_path
     ]
 
-    subprocess.run(cmd, shell=True)
+    result = subprocess.run(cmd, text=True, capture_output=True)
+    print(result.stderr)
+    result.check_returncode()
 
 def get_mkv_files(root_dir):
    mkv_files = []
