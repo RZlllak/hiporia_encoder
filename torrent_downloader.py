@@ -308,7 +308,7 @@ def encode_intro(
         "-color_primaries", "bt709",
         "-color_trc", "bt709",
         "-colorspace", "bt709",
-        "-crf", "23",
+        "-crf", "25",
         "-c:a", "aac",
         "-b:a", "128k",
         intro_output
@@ -320,7 +320,7 @@ def add_subtitles(
     input_video,
     episode_subtitle,
     output_video,
-    crf=23,
+    crf=25,
     resolution=None,
     remove_original_subs=True,
     channel_subtitle="main.ass"
