@@ -333,12 +333,12 @@ def encode_intro(
 
     os.makedirs(os.path.dirname(intro_output), exist_ok=True)
 
-    # دریافت اطلاعات ویدیوی اصلی
+    # دریافت اطلاعات ویدیو و صدا از فایل اصلی
     probe_cmd = [
         "ffprobe",
         "-v", "error",
         "-show_entries",
-        "stream=index,codec_type,r_frame_rate:stream_tags=language,title",
+        "stream=index,codec_type,r_frame_rate,sample_rate,channels:stream_tags=language,title",
         "-of", "json",
         main_video_path
     ]
@@ -355,17 +355,21 @@ def encode_intro(
     video_stream = next(s for s in info["streams"] if s["codec_type"] == "video")
     audio_streams = [s for s in info["streams"] if s["codec_type"] == "audio"]
 
-    # FPS ویدیوی اصلی
+    # FPS
     fps_fraction = video_stream["r_frame_rate"]
     num, den = map(int, fps_fraction.split("/"))
     fps = round(num / den, 3)
+
+    # مشخصات اولین ترک صوتی
+    sample_rate = audio_streams[0]["sample_rate"]
+    channels = audio_streams[0]["channels"]
 
     cmd = [
         "ffmpeg",
         "-y",
         "-i", intro_input,
 
-        # ---------- MAP ----------
+        # Stream Mapping
         "-map", "0:v:0",
     ]
 
@@ -373,7 +377,7 @@ def encode_intro(
     for _ in audio_streams:
         cmd += ["-map", "0:a:0"]
 
-    # ---------- Encoding ----------
+    # Video Encoding
     cmd += [
         "-vf", f"fps={fps},scale={resolution}",
 
@@ -387,11 +391,14 @@ def encode_intro(
         "-colorspace", "bt709",
         "-crf", "23",
 
+        # Audio Encoding
         "-c:a", "aac",
         "-b:a", "128k",
+        "-ar", str(sample_rate),
+        "-ac", str(channels),
     ]
 
-    # ---------- Metadata ----------
+    # Metadata
     for i, stream in enumerate(audio_streams):
 
         tags = stream.get("tags", {})
