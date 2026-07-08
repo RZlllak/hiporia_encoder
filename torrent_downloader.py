@@ -261,6 +261,68 @@ def download_torrent_libtorrent(torrent_link, save_path):
     output_file = downloaded_files[0]
     return os.path.join(save_path, output_file)
 
+def prepare_intro(intro_path, episode_path, output_intro):
+    """
+    Prepare intro so it has the same number of audio streams as episode.
+
+    - Video is copied.
+    - Intro audio is duplicated to match the number of episode audio streams.
+    - No re-encoding.
+    - Metadata (language/title/default) is copied from episode audio streams.
+    """
+
+    # دریافت اطلاعات ترک‌های صوتی اپیزود
+    probe = subprocess.check_output([
+        "ffprobe",
+        "-v", "error",
+        "-select_streams", "a",
+        "-show_entries",
+        "stream=index:stream_tags=language,title",
+        "-of", "json",
+        episode_path
+    ])
+
+    streams = json.loads(probe)["streams"]
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", intro_path,
+        "-i", episode_path,
+
+        # ویدیو فقط از Intro
+        "-map", "0:v:0"
+    ]
+
+    # به تعداد ترک‌های صوتی اپیزود، صدای Intro را Map کن
+    for i in range(len(streams)):
+        cmd += [
+            "-map", "0:a:0"
+        ]
+
+    # بدون Encode
+    cmd += [
+        "-c", "copy"
+    ]
+
+    # انتقال Metadata هر ترک صوتی از Episode
+    for i, stream in enumerate(streams):
+        tags = stream.get("tags", {})
+
+        if "language" in tags:
+            cmd += [f"-metadata:s:a:{i}", f"language={tags['language']}"]
+
+        if "title" in tags:
+            cmd += [f"-metadata:s:a:{i}", f"title={tags['title']}"]
+
+        # اولین ترک را Default کن
+        disposition = "default" if i == 0 else "0"
+        cmd += [f"-disposition:a:{i}", disposition]
+
+    cmd.append(output_intro)
+
+    subprocess.run(cmd, check=True)
+
 def encode_intro(
     main_video_path,
     resolution,
@@ -308,7 +370,7 @@ def encode_intro(
         "-color_primaries", "bt709",
         "-color_trc", "bt709",
         "-colorspace", "bt709",
-        "-crf", "25",
+        "-crf", "23",
         "-c:a", "aac",
         "-b:a", "128k",
         intro_output
@@ -320,7 +382,7 @@ def add_subtitles(
     input_video,
     episode_subtitle,
     output_video,
-    crf=25,
+    crf=23,
     resolution=None,
     remove_original_subs=True,
     channel_subtitle="main.ass"
