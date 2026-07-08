@@ -333,7 +333,7 @@ def encode_intro(
 
     os.makedirs(os.path.dirname(intro_output), exist_ok=True)
 
-    # FPS و اطلاعات صوتی ویدیوی اصلی
+    # دریافت اطلاعات ویدیوی اصلی
     probe_cmd = [
         "ffprobe",
         "-v", "error",
@@ -343,17 +343,19 @@ def encode_intro(
         main_video_path
     ]
 
-    probe_result = subprocess.run(
+    probe = subprocess.run(
         probe_cmd,
         capture_output=True,
-        text=True
+        text=True,
+        check=True
     )
 
-    info = json.loads(probe_result.stdout)
+    info = json.loads(probe.stdout)
 
     video_stream = next(s for s in info["streams"] if s["codec_type"] == "video")
     audio_streams = [s for s in info["streams"] if s["codec_type"] == "audio"]
 
+    # FPS ویدیوی اصلی
     fps_fraction = video_stream["r_frame_rate"]
     num, den = map(int, fps_fraction.split("/"))
     fps = round(num / den, 3)
@@ -363,7 +365,16 @@ def encode_intro(
         "-y",
         "-i", intro_input,
 
-        "-map", "0:a:0",
+        # ---------- MAP ----------
+        "-map", "0:v:0",
+    ]
+
+    # به تعداد ترک‌های صوتی فایل اصلی، صدای Intro را اضافه کن
+    for _ in audio_streams:
+        cmd += ["-map", "0:a:0"]
+
+    # ---------- Encoding ----------
+    cmd += [
         "-vf", f"fps={fps},scale={resolution}",
 
         "-c:v", "libx264",
@@ -375,27 +386,34 @@ def encode_intro(
         "-color_trc", "bt709",
         "-colorspace", "bt709",
         "-crf", "23",
+
+        "-c:a", "aac",
+        "-b:a", "128k",
     ]
 
-    # به تعداد ترک‌های صوتی ویدیوی اصلی، صدای Intro را Map کن
+    # ---------- Metadata ----------
     for i, stream in enumerate(audio_streams):
-        cmd += ["-map", "0:a:0"]
 
         tags = stream.get("tags", {})
 
         if "language" in tags:
-            cmd += [f"-metadata:s:a:{i}", f"language={tags['language']}"]
+            cmd += [
+                f"-metadata:s:a:{i}",
+                f"language={tags['language']}"
+            ]
 
         if "title" in tags:
-            cmd += [f"-metadata:s:a:{i}", f"title={tags['title']}"]
+            cmd += [
+                f"-metadata:s:a:{i}",
+                f"title={tags['title']}"
+            ]
 
-        cmd += [f"-disposition:a:{i}", "default" if i == 0 else "0"]
+        cmd += [
+            f"-disposition:a:{i}",
+            "default" if i == 0 else "0"
+        ]
 
-    cmd += [
-        "-c:a", "aac",
-        "-b:a", "128k",
-        intro_output
-    ]
+    cmd.append(intro_output)
 
     return " ".join(cmd)
 
