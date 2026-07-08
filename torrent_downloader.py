@@ -261,7 +261,6 @@ def download_torrent_libtorrent(torrent_link, save_path):
     output_file = downloaded_files[0]
     return os.path.join(save_path, output_file)
 
-def prepare_intro(intro_path, episode_path, output_intro):
     """
     Prepare intro so it has the same number of audio streams as episode.
 
@@ -334,12 +333,12 @@ def encode_intro(
 
     os.makedirs(os.path.dirname(intro_output), exist_ok=True)
 
-    # گرفتن FPS از ویدیوی اصلی
+    # FPS و اطلاعات صوتی ویدیوی اصلی
     probe_cmd = [
         "ffprobe",
         "-v", "error",
-        "-select_streams", "v:0",
-        "-show_entries", "stream=r_frame_rate",
+        "-show_entries",
+        "stream=index,codec_type,r_frame_rate:stream_tags=language,title",
         "-of", "json",
         main_video_path
     ]
@@ -350,10 +349,12 @@ def encode_intro(
         text=True
     )
 
-    video_info = json.loads(probe_result.stdout)
-    fps_fraction = video_info["streams"][0]["r_frame_rate"]
+    info = json.loads(probe_result.stdout)
 
-    # تبدیل کسر به عدد اعشاری و گرد کردن تا 3 رقم
+    video_stream = next(s for s in info["streams"] if s["codec_type"] == "video")
+    audio_streams = [s for s in info["streams"] if s["codec_type"] == "audio"]
+
+    fps_fraction = video_stream["r_frame_rate"]
     num, den = map(int, fps_fraction.split("/"))
     fps = round(num / den, 3)
 
@@ -361,7 +362,10 @@ def encode_intro(
         "ffmpeg",
         "-y",
         "-i", intro_input,
+
+        "-map", "0:a:0",
         "-vf", f"fps={fps},scale={resolution}",
+
         "-c:v", "libx264",
         "-preset", preset,
         "-tune", "animation",
@@ -371,10 +375,27 @@ def encode_intro(
         "-color_trc", "bt709",
         "-colorspace", "bt709",
         "-crf", "23",
+    ]
+
+    # به تعداد ترک‌های صوتی ویدیوی اصلی، صدای Intro را Map کن
+    for i, stream in enumerate(audio_streams):
+        cmd += ["-map", "0:a:0"]
+
+        tags = stream.get("tags", {})
+
+        if "language" in tags:
+            cmd += [f"-metadata:s:a:{i}", f"language={tags['language']}"]
+
+        if "title" in tags:
+            cmd += [f"-metadata:s:a:{i}", f"title={tags['title']}"]
+
+        cmd += [f"-disposition:a:{i}", "default" if i == 0 else "0"]
+
+    cmd += [
         "-c:a", "aac",
         "-b:a", "128k",
         intro_output
-        ]
+    ]
 
     return " ".join(cmd)
 
