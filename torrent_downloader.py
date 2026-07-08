@@ -489,34 +489,18 @@ def add_subtitles(
     return " ".join(cmd)
 
 def concat_videos(intro_path, episode_path, output_path):
-    """
-    Concatenate two videos using ffmpeg without re-encoding (-c copy).
 
-    Parameters:
-        intro_path (str): Path to encoded intro video
-        episode_path (str): Path to encoded episode video
-        output_path (str): Path to final output video
-    """
-
-    # فایل لیست برای concat
-    list_file = "/content/temp_files/list.txt"
-    os.makedirs(os.path.dirname(list_file), exist_ok=True)
-
-    with open(list_file, "w") as f:
-        f.write(f"file '{intro_path}'\n")
-        f.write(f"file '{episode_path}'\n")
-
-    # دستور concat
     cmd = [
-        "ffmpeg",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", list_file,
-        "-c", "copy",
-        f'"{output_path}"'
+        "mkvmerge",
+        "-o",
+        f'"{output_path}"',
+        f'"{intro_path}"',
+        "+",
+        f'"{episode_path}"'
     ]
 
     return " ".join(cmd)
+
 
 def get_mkv_files(root_dir):
    mkv_files = []
