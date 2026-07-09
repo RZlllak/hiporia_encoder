@@ -489,7 +489,7 @@ def add_subtitles(
     return " ".join(cmd)
 
 def concat_videos(intro_path, episode_path, output_path):
-    temp_dir = "/content/concat_temp/"
+    temp_dir = "/content/concat_temp"
     os.makedirs(temp_dir, exist_ok=True)
 
     list_path = os.path.join(temp_dir, "list.txt")
