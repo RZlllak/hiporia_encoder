@@ -451,7 +451,7 @@ def add_subtitles(
 
     cmd = [
         "ffmpeg",
-        "-i", f'"{input_video}"',
+        "-i", f'{input_video}',
         "-vf", subtitle_filter,
     ]
 
@@ -484,7 +484,7 @@ def add_subtitles(
     if resolution:
         cmd += ["-s", resolution]
 
-    cmd.append(f'"{output_video}"')
+    cmd.append(f'{output_video}')
 
     return cmd
 
