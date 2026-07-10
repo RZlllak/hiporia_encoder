@@ -422,7 +422,7 @@ def encode_intro(
 
     cmd.append(intro_output)
 
-    return " ".join(cmd)
+    return cmd
 
 def add_subtitles(
     input_video,
@@ -486,7 +486,7 @@ def add_subtitles(
 
     cmd.append(f'"{output_video}"')
 
-    return " ".join(cmd)
+    return cmd
 
 def concat_videos(intro_path, episode_path, output_path):
     temp_dir = "/content/concat_temp"
