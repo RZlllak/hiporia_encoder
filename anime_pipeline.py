@@ -5,7 +5,6 @@ import datetime
 import shutil
 from tqdm.notebook import tqdm
 import os
-import wget
 import json
 
 def encode_intro(
