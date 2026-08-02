@@ -7,6 +7,167 @@ from tqdm.notebook import tqdm
 import os
 import json
 
+def download_torrent_aria2(torrent_link, save_path):
+    os.makedirs(save_path, exist_ok=True)
+
+    # ================= تشخیص نوع لینک =================
+    is_magnet = torrent_link.startswith("magnet:")
+    is_torrent_file = torrent_link.endswith(".torrent")
+    is_direct_link = not is_magnet and not is_torrent_file
+
+    torrent_input = torrent_link
+
+    if is_torrent_file:
+        # دانلود فایل .torrent
+        torrent_file = os.path.join(save_path, "temp.torrent")
+        if os.path.exists(torrent_file):
+            os.remove(torrent_file)
+        wget.download(torrent_link, torrent_file)
+        torrent_input = torrent_file
+
+    print(torrent_input)
+    print(datetime.datetime.now())
+
+    log_file = os.path.join(save_path, "aria2.log")
+
+    if is_direct_link:
+        print('Starting Direct Download...')
+        command = [
+            "aria2c",
+
+            # ================= CONCURRENCY =================
+            "-x16",                 # connections per server
+            "-s16",                 # split برای دانلود مستقیم (بر خلاف تورنت، اینجا split بیشتر سرعت رو بالا می‌بره)
+            "-k4M",
+            "--min-split-size=4M",
+
+            # ================= DISK IO OPTIMIZATION =================
+            "--file-allocation=trunc",
+            "--enable-mmap=true",
+            "--disk-cache=256M",
+
+            # ================= FILE SAFETY =================
+            "--auto-file-renaming=false",
+            "--allow-overwrite=false",
+            "--continue=true",
+
+            # ================= PROGRESS =================
+            "--summary-interval=1",
+            "--console-log-level=notice",
+            "--human-readable=true",
+            f"--log={log_file}",
+
+            # ================= OUTPUT =================
+            "--dir", save_path,
+
+            torrent_input
+        ]
+    else:
+        print('Starting Torrent Download...')
+        command = [
+            "aria2c",
+
+            # ================= CONCURRENCY (CRITICAL) =================
+            "-x16",                 # connections per server
+            "-s4",                  # LOW split = faster torrents
+            "-k4M",                 # request bigger pieces
+            "--min-split-size=4M",
+
+            # ================= DISK IO OPTIMIZATION =================
+            "--file-allocation=trunc",
+            "--enable-mmap=true",
+            "--disk-cache=256M",
+            "--stream-piece-selector=inorder",
+
+            # ================= TORRENT OPTIMIZATION =================
+            "--bt-max-peers=0",
+            "--bt-request-peer-speed-limit=50M",
+            "--bt-prioritize-piece=head,tail",
+            "--bt-save-metadata=true",
+            "--bt-load-saved-metadata=true",
+
+            # ================= NETWORK =================
+            "--enable-dht=true",
+            "--enable-peer-exchange=true",
+            "--bt-enable-lpd=true",
+
+            # ================= FILE SAFETY =================
+            "--auto-file-renaming=false",
+            "--allow-overwrite=false",
+
+            # ================= TRACKERS =================
+            "--bt-tracker=https://tracker.openbittorrent.com:443/announce",
+            "--bt-tracker=https://tracker.opentrackr.org:443/announce",
+
+            # ================= NO SEED =================
+            "--seed-time=0",
+            "--bt-seed-unverified=false",
+
+            # ================= PROGRESS =================
+            "--summary-interval=1",
+            "--console-log-level=notice",
+            "--human-readable=true",
+            f"--log={log_file}",
+
+            # ================= OUTPUT =================
+            "--dir", save_path,
+
+            torrent_input
+        ]
+
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
+    )
+
+    pbar = tqdm(total=100)
+    for line in process.stdout:
+        if '(' in line and '%' in line:
+            try:
+                percent = line.split('%')[0].split('(')[-1]
+                pbar.n = int(float(percent))
+                pbar.set_postfix_str(line.strip())
+                pbar.refresh()
+            except:
+                pass
+
+    process.wait()
+    pbar.n = 100
+    pbar.refresh()
+    pbar.close()
+
+    if process.returncode != 0:
+        print(f"aria2c exited with error code {process.returncode}")
+        return None
+
+    print("Download complete.")
+
+    # ================= FIND LARGEST FILE (recursive, excludes aux files) =================
+    EXCLUDED_FILES = {"aria2.log", "temp.torrent"}
+    EXCLUDED_EXTENSIONS = {".aria2"}  # فایل‌های موقت کنترل دانلود aria2
+
+    downloaded_files = []
+    for root, _, files in os.walk(save_path):
+        for f in files:
+            if f in EXCLUDED_FILES:
+                continue
+            if os.path.splitext(f)[1] in EXCLUDED_EXTENSIONS:
+                continue
+            full_path = os.path.join(root, f)
+            downloaded_files.append(full_path)
+
+    if not downloaded_files:
+        print("No files found.")
+        return None
+
+    downloaded_files.sort(key=os.path.getsize, reverse=True)
+
+    output_file = downloaded_files[0]
+    return output_file
+
 def encode_intro(
     main_video_path,
     resolution,
