@@ -36,8 +36,8 @@ def download_torrent_aria2(torrent_link, save_path):
             "aria2c",
 
             # ================= CONCURRENCY =================
-            "-x16",                 # connections per server
-            "-s16",                 # split برای دانلود مستقیم (بر خلاف تورنت، اینجا split بیشتر سرعت رو بالا می‌بره)
+            "-x16",
+            "-s16",
             "-k4M",
             "--min-split-size=4M",
 
@@ -47,8 +47,9 @@ def download_torrent_aria2(torrent_link, save_path):
             "--disk-cache=256M",
 
             # ================= FILE SAFETY =================
+            # فایل قبلاً کامل دانلودشده رو overwrite/skip می‌کند به‌جای Error
+            "--allow-overwrite=true",
             "--auto-file-renaming=false",
-            "--allow-overwrite=false",
             "--continue=true",
 
             # ================= PROGRESS =================
@@ -68,9 +69,9 @@ def download_torrent_aria2(torrent_link, save_path):
             "aria2c",
 
             # ================= CONCURRENCY (CRITICAL) =================
-            "-x16",                 # connections per server
-            "-s4",                  # LOW split = faster torrents
-            "-k4M",                 # request bigger pieces
+            "-x16",
+            "-s4",
+            "-k4M",
             "--min-split-size=4M",
 
             # ================= DISK IO OPTIMIZATION =================
@@ -92,8 +93,9 @@ def download_torrent_aria2(torrent_link, save_path):
             "--bt-enable-lpd=true",
 
             # ================= FILE SAFETY =================
+            # فایل قبلاً کامل دانلودشده رو overwrite/skip می‌کند به‌جای Error 13
+            "--allow-overwrite=true",
             "--auto-file-renaming=false",
-            "--allow-overwrite=false",
 
             # ================= TRACKERS =================
             "--bt-tracker=https://tracker.openbittorrent.com:443/announce",
@@ -140,10 +142,11 @@ def download_torrent_aria2(torrent_link, save_path):
     pbar.close()
 
     if process.returncode != 0:
-        print(f"aria2c exited with error code {process.returncode}")
-        return None
-
-    print("Download complete.")
+        # به‌جای fail فوری، فقط هشدار می‌دیم — ممکنه فایل قبلاً کامل دانلود شده باشه
+        # (مثلاً exit code 13 = "file already exists")
+        print(f"⚠️ aria2c exited with code {process.returncode} — checking if a valid file already exists...")
+    else:
+        print("Download complete.")
 
     # ================= FIND LARGEST FILE (recursive, excludes aux files) =================
     EXCLUDED_FILES = {"aria2.log", "temp.torrent"}
@@ -167,7 +170,6 @@ def download_torrent_aria2(torrent_link, save_path):
 
     output_file = downloaded_files[0]
     return output_file
-
 def encode_intro(
     main_video_path,
     resolution,
