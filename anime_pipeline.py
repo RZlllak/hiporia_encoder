@@ -7,23 +7,15 @@ from tqdm.notebook import tqdm
 import os
 import json
 
+
 def download_torrent_aria2(torrent_link, save_path):
     os.makedirs(save_path, exist_ok=True)
 
     # ================= تشخیص نوع لینک =================
     is_magnet = torrent_link.startswith("magnet:")
-    is_torrent_file = torrent_link.endswith(".torrent")
-    is_direct_link = not is_magnet and not is_torrent_file
+    is_direct_link = not is_magnet
 
     torrent_input = torrent_link
-
-    if is_torrent_file:
-        # دانلود فایل .torrent
-        torrent_file = os.path.join(save_path, "temp.torrent")
-        if os.path.exists(torrent_file):
-            os.remove(torrent_file)
-        wget.download(torrent_link, torrent_file)
-        torrent_input = torrent_file
 
     print(torrent_input)
     print(datetime.datetime.now())
@@ -149,7 +141,7 @@ def download_torrent_aria2(torrent_link, save_path):
         print("Download complete.")
 
     # ================= FIND LARGEST FILE (recursive, excludes aux files) =================
-    EXCLUDED_FILES = {"aria2.log", "temp.torrent"}
+    EXCLUDED_FILES = {"aria2.log"}
     EXCLUDED_EXTENSIONS = {".aria2"}  # فایل‌های موقت کنترل دانلود aria2
 
     downloaded_files = []
@@ -170,6 +162,7 @@ def download_torrent_aria2(torrent_link, save_path):
 
     output_file = downloaded_files[0]
     return output_file
+
 def encode_intro(
     main_video_path,
     resolution,
