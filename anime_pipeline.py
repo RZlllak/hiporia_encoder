@@ -1,3 +1,4 @@
+from concurrent.futures import process
 import subprocess
 import zipfile
 import time
@@ -7,6 +8,24 @@ from tqdm.notebook import tqdm
 import os
 import json
 
+
+def find_completed_file(save_path):
+    EXCLUDED_FILES = {"aria2.log"}
+    candidates = []
+    for root, _, files in os.walk(save_path):
+        for f in files:
+            if f in EXCLUDED_FILES or f.endswith(".aria2"):
+                continue
+            full_path = os.path.join(root, f)
+            control_file = full_path + ".aria2"
+            if os.path.exists(control_file):
+                continue  # still incomplete — has a resume control file
+            candidates.append(full_path)
+
+    if not candidates:
+        return None
+    candidates.sort(key=os.path.getsize, reverse=True)
+    return candidates[0]
 
 def download_torrent_aria2(torrent_link, save_path):
     os.makedirs(save_path, exist_ok=True)
@@ -40,7 +59,7 @@ def download_torrent_aria2(torrent_link, save_path):
 
             # ================= FILE SAFETY =================
             # فایل قبلاً کامل دانلودشده رو overwrite/skip می‌کند به‌جای Error
-            "--allow-overwrite=true",
+            "--allow-overwrite=false",
             "--auto-file-renaming=false",
             "--continue=true",
 
@@ -86,7 +105,7 @@ def download_torrent_aria2(torrent_link, save_path):
 
             # ================= FILE SAFETY =================
             # فایل قبلاً کامل دانلودشده رو overwrite/skip می‌کند به‌جای Error 13
-            "--allow-overwrite=true",
+            "--allow-overwrite=false",
             "--auto-file-renaming=false",
 
             # ================= TRACKERS =================
@@ -133,34 +152,16 @@ def download_torrent_aria2(torrent_link, save_path):
     pbar.refresh()
     pbar.close()
 
+    output_file = find_completed_file(save_path)
+
+    if process.returncode != 0 and output_file is None:
+        raise RuntimeError(f"aria2c failed (exit {process.returncode}) and no completed file was found")
+
     if process.returncode != 0:
-        # به‌جای fail فوری، فقط هشدار می‌دیم — ممکنه فایل قبلاً کامل دانلود شده باشه
-        # (مثلاً exit code 13 = "file already exists")
-        print(f"⚠️ aria2c exited with code {process.returncode} — checking if a valid file already exists...")
+        print(f"⚠️ aria2c exited with code {process.returncode}, but a completed file was found — assuming already downloaded.")
     else:
         print("Download complete.")
 
-    # ================= FIND LARGEST FILE (recursive, excludes aux files) =================
-    EXCLUDED_FILES = {"aria2.log"}
-    EXCLUDED_EXTENSIONS = {".aria2"}  # فایل‌های موقت کنترل دانلود aria2
-
-    downloaded_files = []
-    for root, _, files in os.walk(save_path):
-        for f in files:
-            if f in EXCLUDED_FILES:
-                continue
-            if os.path.splitext(f)[1] in EXCLUDED_EXTENSIONS:
-                continue
-            full_path = os.path.join(root, f)
-            downloaded_files.append(full_path)
-
-    if not downloaded_files:
-        print("No files found.")
-        return None
-
-    downloaded_files.sort(key=os.path.getsize, reverse=True)
-
-    output_file = downloaded_files[0]
     return output_file
 
 def encode_intro(
