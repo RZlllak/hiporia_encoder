@@ -333,23 +333,17 @@ def add_subtitles(
 def concat_videos(intro_path, episode_path, output_path):
     temp_dir = "/content/concat_temp"
     os.makedirs(temp_dir, exist_ok=True)
-
     list_path = os.path.join(temp_dir, "list.txt")
 
-    with open(list_path, "w", encoding="utf-8") as f:
-        f.write(f"file '{os.path.abspath(intro_path)}'\n")
-        f.write(f"file '{os.path.abspath(episode_path)}'\n")
+    def esc(p):
+        return os.path.abspath(p).replace("'", r"'\''")
 
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", list_path,
-        "-map", "0",
-        "-c", "copy",
-        output_path
-    ]
+    with open(list_path, "w", encoding="utf-8") as f:
+        f.write(f"file '{esc(intro_path)}'\n")
+        f.write(f"file '{esc(episode_path)}'\n")
+
+    cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path,
+           "-map", "0", "-c", "copy", output_path]
     return cmd
 
 
