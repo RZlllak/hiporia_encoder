@@ -330,20 +330,84 @@ def add_subtitles(
 
     return cmd
 
+def encode_raw(
+    input_video,
+    output_video,
+    crf=23,
+    resolution=None
+):
+    """
+    RAW encode: same video/audio settings as add_subtitles(), but nothing is burned in.
+
+    Every stream of the source is kept: the original softsubs, fonts/attachments,
+    chapters, and all audio tracks. Only the video (x264) and audio (AAC) are re-encoded.
+    No intro is added (the caller simply skips encode_intro/concat_videos).
+
+    Parameters:
+        input_video (str): Path to the RAW source
+        output_video (str): Path to final encoded output (.mkv)
+        crf (int): Quality factor (lower = better quality)
+        resolution (str): Optional resolution like "1920x1080"
+    """
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", f'{input_video}',
+
+        # Keep everything from the source, copy by default
+        # (softsubs, fonts/attachments, chapters, metadata stay untouched)
+        "-map", "0",
+        "-c", "copy",
+    ]
+
+    # Video encoding (same as add_subtitles)
+    cmd += [
+        "-c:v", "libx264",
+        "-preset", "medium",
+        "-tune", "animation",
+        "-profile:v", "high",
+        "-level", "4.1",
+        "-color_primaries", "bt709",
+        "-color_trc", "bt709",
+        "-colorspace", "bt709",
+        "-crf", str(crf),
+    ]
+
+    # Audio encoding (same as add_subtitles)
+    cmd += [
+        "-c:a", "aac",
+        "-b:a", "128k"
+    ]
+
+    # Optional resolution
+    if resolution:
+        cmd += ["-s", resolution]
+
+    cmd.append(f'{output_video}')
+
+    return cmd
+
 def concat_videos(intro_path, episode_path, output_path):
     temp_dir = "/content/concat_temp"
     os.makedirs(temp_dir, exist_ok=True)
+
     list_path = os.path.join(temp_dir, "list.txt")
 
-    def esc(p):
-        return os.path.abspath(p).replace("'", r"'\''")
-
     with open(list_path, "w", encoding="utf-8") as f:
-        f.write(f"file '{esc(intro_path)}'\n")
-        f.write(f"file '{esc(episode_path)}'\n")
+        f.write(f"file '{os.path.abspath(intro_path)}'\n")
+        f.write(f"file '{os.path.abspath(episode_path)}'\n")
 
-    cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path,
-           "-map", "0", "-c", "copy", output_path]
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", list_path,
+        "-map", "0",
+        "-c", "copy",
+        output_path
+    ]
     return cmd
 
 
