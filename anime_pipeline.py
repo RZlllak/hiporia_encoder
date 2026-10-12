@@ -270,7 +270,7 @@ def add_subtitles(
     input_video,
     episode_subtitle,
     output_video,
-    crf=23,
+    crf=24,
     resolution=None,
     remove_original_subs=True,
     channel_subtitle="main.ass"
@@ -333,7 +333,7 @@ def add_subtitles(
 def encode_raw(
     input_video,
     output_video,
-    crf=23,
+    crf=24,
     resolution=None
 ):
     """
