@@ -1,4 +1,3 @@
-from concurrent.futures import process
 import subprocess
 import zipfile
 import time
@@ -270,7 +269,7 @@ def add_subtitles(
     input_video,
     episode_subtitle,
     output_video,
-    crf=24,
+    crf=23,
     resolution=None,
     remove_original_subs=True,
     channel_subtitle="main.ass"
@@ -293,6 +292,7 @@ def add_subtitles(
 
     cmd = [
         "ffmpeg",
+        "-y",
         "-i", f'{input_video}',
         "-vf", subtitle_filter,
     ]
@@ -333,7 +333,7 @@ def add_subtitles(
 def encode_raw(
     input_video,
     output_video,
-    crf=24,
+    crf=23,
     resolution=None
 ):
     """
@@ -394,9 +394,13 @@ def concat_videos(intro_path, episode_path, output_path):
 
     list_path = os.path.join(temp_dir, "list.txt")
 
+    def esc(p):
+        # a single quote inside a quoted concat-list entry must be written as '\''
+        return os.path.abspath(p).replace("'", "'\\''")
+
     with open(list_path, "w", encoding="utf-8") as f:
-        f.write(f"file '{os.path.abspath(intro_path)}'\n")
-        f.write(f"file '{os.path.abspath(episode_path)}'\n")
+        f.write(f"file '{esc(intro_path)}'\n")
+        f.write(f"file '{esc(episode_path)}'\n")
 
     cmd = [
         "ffmpeg",
