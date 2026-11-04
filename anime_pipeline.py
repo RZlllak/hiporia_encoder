@@ -169,7 +169,7 @@ def encode_intro(
     preset="medium"
 ):
 
-    intro_input = "/content/hiporia_encoder/intro/Intro.mp4"
+    intro_input = "/content/torrent_downloader/intro/Intro.mp4"
     intro_output = "/content/temp_files/intro.mkv"
 
     os.makedirs(os.path.dirname(intro_output), exist_ok=True)
@@ -235,10 +235,11 @@ def encode_intro(
         # Audio Encoding
         "-c:a", "aac",
         "-b:a", "128k",
-        "-ar", str(sample_rate),
-        "-ac", str(channels),
     ]
-
+    # remove the global "-ar", "-ac" lines, then:
+    for i, s in enumerate(audio_streams):
+        cmd += [f"-ar:a:{i}", str(s["sample_rate"]),
+                f"-ac:a:{i}", str(s["channels"])]
     # Metadata
     for i, stream in enumerate(audio_streams):
 
