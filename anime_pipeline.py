@@ -169,7 +169,7 @@ def encode_intro(
     preset="medium"
 ):
 
-    intro_input = "/content/torrent_downloader/intro/Intro.mp4"
+    intro_input = "/content/hiporia_encoder/intro/Intro.mp4"
     intro_output = "/content/temp_files/intro.mkv"
 
     os.makedirs(os.path.dirname(intro_output), exist_ok=True)
