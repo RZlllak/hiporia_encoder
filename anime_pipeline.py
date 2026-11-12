@@ -317,7 +317,7 @@ def add_subtitles(
     # Audio encoding
     cmd += [
         "-c:a", "aac",
-        "-b:a", "128k"
+        "-b:a", "128k",
         "-ar", "48000",
         "-ac", "2",
     ]
