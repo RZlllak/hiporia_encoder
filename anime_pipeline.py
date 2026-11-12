@@ -236,10 +236,7 @@ def encode_intro(
         "-c:a", "aac",
         "-b:a", "128k",
     ]
-    # remove the global "-ar", "-ac" lines, then:
-    for i, s in enumerate(audio_streams):
-        cmd += [f"-ar:a:{i}", str(s["sample_rate"]),
-                f"-ac:a:{i}", str(s["channels"])]
+    cmd += ["-ar", "48000", "-ac", "2"]
     # Metadata
     for i, stream in enumerate(audio_streams):
 
@@ -321,6 +318,8 @@ def add_subtitles(
     cmd += [
         "-c:a", "aac",
         "-b:a", "128k"
+        "-ar", "48000",
+        "-ac", "2",
     ]
 
     # Optional resolution
@@ -378,7 +377,9 @@ def encode_raw(
     # Audio encoding (same as add_subtitles)
     cmd += [
         "-c:a", "aac",
-        "-b:a", "128k"
+        "-b:a", "128k",
+        "-ar", "48000",
+        "-ac", "2",
     ]
 
     # Optional resolution
